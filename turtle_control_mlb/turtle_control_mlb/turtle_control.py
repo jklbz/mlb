@@ -1,7 +1,6 @@
 import rclpy
 from rclpy.node import Node
 
-from std_msgs.msg import String
 from geometry_msgs.msg import Pose2D
 from geometry_msgs.msg import Twist
 from turtlesim.msg import Pose
@@ -44,21 +43,20 @@ class TurtleControl(Node):
         self.y = 0.0
         self.y_error = 0.0
         self.y_goal = 0.0
-        self.k_omega = 0.0
+        self.v_max = 1.0
+        self.k_omega = 1.0
         self.theta = 0.0
         self.p = 0.0
         self.alpha = 0.0
 
     def pose_callback(self, msg):
         # callback para receber a pose do turtlesim;
-        #self.get_logger().info('pose: "%f" , "%f", "%f"' % (msg.x, msg.y, msg.theta))
         self.x = msg.x
         self.y = msg.y
         self.theta = msg.theta
 
     def goal_callback(self, msg):
         #callback para receber a posição objetivo;
-        #self.get_logger().info('goal: "%s"' % msg.data)
         self.x_goal = msg.x
         self.y_goal = msg.y
 
@@ -66,11 +64,18 @@ class TurtleControl(Node):
         # método principal do nó, implementado como callback do publisher.
         self.x_error = self.x_goal - self.x
         self.y_error = self.y_goal - self.y
-       
+        
+        if((math.sqrt(self.x_error**2) > 0.1) or (math.sqrt(self.y_error**2) > 0.1)):
+            self.p = math.sqrt((self.x_error**2) + (self.y_error**2))
+            self.alpha = math.atan2(self.y_error,self.x_error) - (self.theta)
+        else:
+            self.p = 0.0
+            self.alpha = 0.0
+
         msg = Twist()
-        msg.linear.x = 2.0
+        msg.linear.x = self.v_max * math.tanh(self.p)
         msg.linear.y = 0.0
-        msg.angular.z = 1.8
+        msg.angular.z = self.k_omega * self.alpha
 
         self.publisher_.publish(msg)
 
